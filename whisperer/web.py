@@ -51,6 +51,10 @@ def team_only(r: str = Depends(role)) -> str:
     return r
 
 
+def _is_test(run) -> bool:
+    return (run.stats or {}).get("_mode") == "test"
+
+
 @app.get("/healthz")
 def healthz():
     return {"ok": True}
@@ -59,7 +63,8 @@ def healthz():
 @app.get("/", response_class=HTMLResponse)
 def index(r: str = Depends(role)):
     with db.Session() as s:
-        run = s.scalars(select(db.Run).where(db.Run.status == "done").order_by(db.Run.id.desc())).first()
+        runs = s.scalars(select(db.Run).where(db.Run.status == "done").order_by(db.Run.id.desc())).all()
+        run = next((x for x in runs if r == "team" or not _is_test(x)), None)
     if not run:
         return _page("empty.html", r, runs=[])
     return RedirectResponse(f"/runs/{run.id}", 302)
@@ -70,7 +75,7 @@ def panel(run_id: int, request: Request, r: str = Depends(role), bucket: Optiona
           fmt: Optional[str] = None, status: Optional[str] = None, city: Optional[str] = None):
     with db.Session() as s:
         run = s.get(db.Run, run_id)
-        if not run:
+        if not run or (r != "team" and _is_test(run)):
             raise HTTPException(404)
         q = select(db.Opportunity).where(db.Opportunity.run_id == run_id)
         q = q.where(db.Opportunity.bucket == bucket) if bucket else q.where(db.Opportunity.bucket != "skip")
@@ -81,10 +86,11 @@ def panel(run_id: int, request: Request, r: str = Depends(role), bucket: Optiona
         if city:
             q = q.where(db.Opportunity.city == city)
         opps = s.scalars(q.order_by(db.Opportunity.bucket.desc(), db.Opportunity.total.desc())).all()
-        runs = s.scalars(select(db.Run).order_by(db.Run.id.desc()).limit(20)).all()
+        runs = [x for x in s.scalars(select(db.Run).order_by(db.Run.id.desc()).limit(30)).all()
+                if r == "team" or not _is_test(x)][:20]
         cities = sorted({c for c in s.scalars(select(db.Opportunity.city).where(
             db.Opportunity.run_id == run_id, db.Opportunity.city.is_not(None))).all()})
-    return _page("panel.html", r, run=run, runs=runs, opps=opps, formats=FORMATS, statuses=STATUSES, cities=cities,
+    return _page("panel.html", r, run=run, is_test=_is_test(run), runs=runs, opps=opps, formats=FORMATS, statuses=STATUSES, cities=cities,
                  f={"bucket": bucket or "", "fmt": fmt or "", "status": status or "", "city": city or ""},
                  running=_running.locked())
 
@@ -93,7 +99,7 @@ def panel(run_id: int, request: Request, r: str = Depends(role), bucket: Optiona
 def report_html(run_id: int, r: str = Depends(role)):
     with db.Session() as s:
         run = s.get(db.Run, run_id)
-        if not run:
+        if not run or (r != "team" and _is_test(run)):
             raise HTTPException(404)
         return HTMLResponse(run.report_html or "<p>Report not ready.</p>")
 
@@ -112,16 +118,29 @@ def update_opp(opp_id: int, status: str = Form(...), notes: str = Form(""), r: s
 
 
 @app.post("/run")
-def trigger_run(r: str = Depends(team_only)):
+def trigger_run(test: str = Form(""), r: str = Depends(team_only)):
     if _running.locked():
         return RedirectResponse("/", 303)
 
     def _go():
         with _running:
             from whisperer.pipeline import run
-            run(send_email=False)
+            run(send_email=False, test=bool(test))
 
     threading.Thread(target=_go, daemon=True).start()
+    return RedirectResponse("/", 303)
+
+
+@app.post("/runs/{run_id}/delete")
+def delete_run(run_id: int, r: str = Depends(team_only)):
+    with db.Session() as s:
+        run = s.get(db.Run, run_id)
+        if not run:
+            raise HTTPException(404)
+        if (run.stats or {}).get("_mode") != "test":
+            raise HTTPException(400, "Only test runs can be deleted")
+        s.delete(run)
+        s.commit()
     return RedirectResponse("/", 303)
 
 

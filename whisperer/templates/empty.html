@@ -1,3 +1,4 @@
 {% extends "base.html" %}
-{% block actions %}{% if role == 'team' %}<form method="post" action="/run"><button class="primary">Run now</button></form>{% endif %}{% endblock %}
+{% block actions %}{% if role == 'team' %}<div class="filters" style="margin:0"><form method="post" action="/run" style="margin:0"><button class="primary">Run now</button></form>
+<form method="post" action="/run" style="margin:0"><input type="hidden" name="test" value="1"><button>Run test</button></form></div>{% endif %}{% endblock %}
 {% block body %}<div class="card">No runs yet. The pipeline runs every Monday morning{% if role == 'team' %}, or start one with “Run now”{% endif %}.</div>{% endblock %}

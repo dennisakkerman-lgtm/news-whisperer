@@ -11,13 +11,13 @@ import requests
 log = logging.getLogger(__name__)
 
 
-def send_report(cfg, run) -> bool:
+def send_report(cfg, run, test: bool = False) -> bool:
     to = [a.strip() for a in os.environ.get("REPORT_TO", "").split(",") if a.strip()]
     sender = os.environ.get("REPORT_FROM", "News Whisperer <whisperer@seeders.com>")
     if not to:
         log.info("REPORT_TO not set; skipping e-mail")
         return False
-    subject = f"{cfg['brand']['name']} News Whisperer · week of {run.started_at:%d %b %Y}"
+    subject = f"{'[TEST] ' if test else ''}{cfg['brand']['name']} News Whisperer · week of {run.started_at:%d %b %Y}"
     panel = os.environ.get("PUBLIC_URL", "").rstrip("/")
     html = run.report_html
     if panel:

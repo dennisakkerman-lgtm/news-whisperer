@@ -20,6 +20,7 @@ def render_run(session, run: db.Run, cfg) -> str:
     by = {b: [o for o in opps if o.bucket == b] for b in ("this_week", "monitor", "skip")}
     stats = dict(run.stats or {})
     totals = stats.pop("_totals", {})
+    stats.pop("_mode", None)
     skip_reasons = Counter(o.skip_reason.split(":")[0] for o in by["skip"])
     for why, n in (totals.get("filtered_out") or {}).items():
         skip_reasons[why] += n

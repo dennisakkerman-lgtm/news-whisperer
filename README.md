@@ -62,3 +62,10 @@ One repo, three services in one project:
 
 Both app services get `DATABASE_URL=${{Postgres.DATABASE_URL}}` plus the keys from `.env.example`.
 The team can also start a run from the panel ("Run now"; no e-mail is sent for those).
+
+## Test mode
+
+`python -m whisperer run --test` (or **Run test** in the panel, or `WHISPERER_TEST_MODE=1`) runs the real sources
+and fills every source that has no credentials yet with sample signals marked `[TEST]` (links go to example.com).
+Test runs get a banner in the panel and report, are invisible to the client login, send no e-mail unless
+`--email` is passed (subject then starts with `[TEST]`), and can be deleted by the team.

@@ -13,12 +13,15 @@ def main():
     r = sub.add_parser("run", help="run the weekly pipeline once")
     r.add_argument("--client")
     r.add_argument("--no-email", action="store_true")
+    r.add_argument("--test", action="store_true", help="sample data for sources without credentials; no e-mail unless --email")
+    r.add_argument("--email", action="store_true", help="with --test: also send the [TEST] e-mail")
     sub.add_parser("serve", help="start the panel")
     a = p.parse_args()
 
     if a.cmd == "run":
         from whisperer.pipeline import run
-        run_id = run(a.client, send_email=not a.no_email)
+        send = a.email if a.test else not a.no_email
+        run_id = run(a.client, send_email=send, test=a.test or os.environ.get("WHISPERER_TEST_MODE") == "1")
         print(f"run {run_id} done")
     else:
         import uvicorn

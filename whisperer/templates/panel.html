@@ -2,15 +2,22 @@
 {% block actions %}
 <div class="filters" style="margin:0">
   <select onchange="location='/runs/'+this.value">
-    {% for r in runs %}<option value="{{ r.id }}" {{ 'selected' if r.id == run.id }}>Week of {{ r.started_at.strftime('%d %b %Y') }}{{ '' if r.status == 'done' else ' (' ~ r.status ~ ')' }}</option>{% endfor %}
+    {% for r in runs %}<option value="{{ r.id }}" {{ 'selected' if r.id == run.id }}>{{ 'TEST · ' if (r.stats or {}).get('_mode') == 'test' }}{{ r.started_at.strftime('%d %b %Y %H:%M') }}{{ '' if r.status == 'done' else ' (' ~ r.status ~ ')' }}</option>{% endfor %}
   </select>
   <a href="/runs/{{ run.id }}/report" target="_blank">Weekly report</a>
   {% if role == 'team' %}
     <form method="post" action="/run" style="margin:0"><button class="primary" {{ 'disabled' if running }}>{{ 'Running…' if running else 'Run now' }}</button></form>
+    <form method="post" action="/run" style="margin:0"><input type="hidden" name="test" value="1"><button {{ 'disabled' if running }}>Run test</button></form>
   {% endif %}
 </div>
 {% endblock %}
 {% block body %}
+{% if is_test %}
+<div class="card" style="background:#fff3cd;border-color:#e0c060;color:#5c4700">
+  <strong>Test run.</strong> Sources without credentials are filled with [TEST] sample data. The client cannot see this run.
+  {% if role == 'team' %}<form method="post" action="/runs/{{ run.id }}/delete" style="display:inline;margin-left:8px" onsubmit="return confirm('Delete this test run?')"><button>Delete test run</button></form>{% endif %}
+</div>
+{% endif %}
 <form class="filters" method="get">
   <select name="bucket"><option value="">This week + Monitor</option>
     {% for b in ['this_week','monitor','skip'] %}<option {{ 'selected' if f.bucket == b }}>{{ b }}</option>{% endfor %}</select>

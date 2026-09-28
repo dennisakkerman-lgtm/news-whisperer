@@ -127,7 +127,7 @@ def _in_season(cfg, today: date, t: str) -> bool:
 
 
 def score(sig: Signal, cfg, gaps: GapIndex) -> Scored:
-    t = norm(f"{sig.title} {sig.text}")
+    t = norm(f"{sig.title.replace('[TEST] ', '')} {sig.text}")
     sc = Scored(sig, evidence=[sig.url], title=sig.title)
 
     # Audience: persona fit + city + engagement

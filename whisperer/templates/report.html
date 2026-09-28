@@ -17,12 +17,13 @@
   .small{font-size:13px;color:#555}
   a{color:#c45500}
   table{width:100%;border-collapse:collapse;font-size:13px} td,th{text-align:left;padding:5px 6px;border-bottom:1px solid #e3e3df}
-  .ok{color:#2a7a2a}.error{color:#b00020}.skipped{color:#888}
+  .ok{color:#2a7a2a}.test-data{color:#8a6d00}.error{color:#b00020}.skipped{color:#888}
   ul{padding-left:18px;margin:6px 0}
   footer{margin-top:32px;font-size:12px;color:#666}
 </style>
 </head>
 <body><div class="wrap">
+  {% if sources.get('_mode') == 'test' or run.stats.get('_mode') == 'test' %}<div style="background:#fff3cd;border:1px solid #e0c060;border-radius:6px;padding:8px 12px;margin-bottom:12px"><strong>TEST RUN.</strong> Sources without credentials are filled with [TEST] sample data. Do not share with the client.</div>{% endif %}
   <h1>{{ cfg.brand.name }} · News Whisperer</h1>
   <div class="meta">
     Run {{ run.started_at.strftime('%A %d %B %Y') }} · {{ cfg.brand.domain }} · config {{ run.config_version }} ·
@@ -44,7 +45,7 @@
 
   <h2>Sources</h2>
   <table><tr><th>Source</th><th>Status</th><th>Signals</th><th></th></tr>
-  {% for name, s in sources.items() %}
+  {% for name, s in sources.items() if not name.startswith('_') %}
     <tr><td>{{ name }}</td><td class="{{ s.status }}">{{ s.status }}</td><td>{{ s.count }}</td><td class="small">{{ s.detail or '' }}</td></tr>
   {% endfor %}</table>
   {% if totals.gap_prompts %}<p class="small">AI-visibility gap reference: {{ totals.gap_prompts }} PromptWatch prompts below {{ totals.gap_threshold }}% visibility.</p>{% endif %}

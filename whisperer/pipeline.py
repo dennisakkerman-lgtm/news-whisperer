@@ -9,14 +9,14 @@ from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional
 
 from whisperer import db, narrative, report
-from whisperer.collectors import REGISTRY, Skipped
+from whisperer.collectors import REGISTRY, Skipped, fixtures
 from whisperer.core import Signal, load_config
 from whisperer.scoring import URGENCY, GapIndex, bucketize, corroborate, relevant, score
 
 log = logging.getLogger(__name__)
 
 
-def collect_all(cfg, since) -> (List[Signal], Dict[str, dict]):
+def collect_all(cfg, since, test: bool = False) -> (List[Signal], Dict[str, dict]):
     signals, stats = [], {}
     for name, mod_path in REGISTRY.items():
         t0 = time.time()
@@ -26,7 +26,12 @@ def collect_all(cfg, since) -> (List[Signal], Dict[str, dict]):
             signals.extend(got)
             stats[name] = {"status": "ok", "count": len(got)}
         except Skipped as exc:
-            stats[name] = {"status": "skipped", "count": 0, "detail": str(exc)}
+            got = fixtures.sample(name) if test and "disabled" not in str(exc) else []
+            if got:
+                signals.extend(got)
+                stats[name] = {"status": "test-data", "count": len(got), "detail": f"sample data ({exc})"}
+            else:
+                stats[name] = {"status": "skipped", "count": 0, "detail": str(exc)}
         except Exception as exc:
             log.exception("collector %s failed", name)
             stats[name] = {"status": "error", "count": 0, "detail": f"{type(exc).__name__}: {exc}"[:300]}
@@ -35,19 +40,35 @@ def collect_all(cfg, since) -> (List[Signal], Dict[str, dict]):
     return signals, stats
 
 
-def run(client: Optional[str] = None, send_email: bool = True) -> int:
+def run(client: Optional[str] = None, send_email: bool = True, test: bool = False) -> int:
+    """One pipeline run. test=True fills sources without credentials with [TEST] sample data
+    and labels the run as a test everywhere (panel banner, report header, e-mail subject)."""
     cfg = load_config(client)
     db.init_db()
     lookback = cfg["output"]["lookback_days"]
     since = datetime.now(timezone.utc) - timedelta(days=lookback)
 
     with db.Session() as s:
-        r = db.Run(client=cfg["_client"], config_version=cfg["config_version"], lookback_days=lookback)
+        r = db.Run(client=cfg["_client"], config_version=cfg["config_version"], lookback_days=lookback,
+                   stats={"_mode": "test"} if test else {})
         s.add(r)
         s.commit()
         run_id = r.id
 
-    signals, stats = collect_all(cfg, since)
+    try:
+        return _run(cfg, run_id, since, send_email, test)
+    except Exception:
+        with db.Session() as s:
+            r = s.get(db.Run, run_id)
+            r.status, r.finished_at = "failed", db.now()
+            s.commit()
+        raise
+
+
+def _run(cfg, run_id, since, send_email, test) -> int:
+    signals, stats = collect_all(cfg, since, test)
+    if test:
+        stats["_mode"] = "test"
 
     # dedupe by URL
     seen, unique = set(), []
@@ -100,6 +121,6 @@ def run(client: Optional[str] = None, send_email: bool = True) -> int:
         from whisperer import mailer
         with db.Session() as s:
             r = s.get(db.Run, run_id)
-            mailer.send_report(cfg, r)
+            mailer.send_report(cfg, r, test=test)
     log.info("run %s done: %s", run_id, stats["_totals"])
     return run_id
