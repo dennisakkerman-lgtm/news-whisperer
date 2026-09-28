@@ -31,6 +31,19 @@
   </div>
   <!--PANEL_LINK-->
 
+  {% if pw %}
+  <h2>AI visibility · PromptWatch</h2>
+  <table>
+    <tr><td>Average AI visibility ({{ pw.prompts }} prompts{{ ', seed export' if pw.prompts_origin == 'seed' }})</td><td>{{ pw.avg_visibility }}%</td></tr>
+    <tr><td>Prompts below {{ pw.threshold }}% (gap reference)</td><td>{{ pw.low_visibility }}</td></tr>
+    {% if pw.mentions %}<tr><td>Brand mentions in AI answers this week (last week)</td><td>{{ pw.mentions.brand }}{% if pw.mentions.brand_prev is not none %} ({{ pw.mentions.brand_prev }}){% endif %} · competitors {{ pw.mentions.competitors }}</td></tr>{% endif %}
+    {% if pw.citation_share_pct is defined %}<tr><td>{{ cfg.brand.domain }} share of AI citations (5 weeks)</td><td>{{ pw.citation_share_pct }}%</td></tr>{% endif %}
+    {% if pw.visibility_drops is defined %}<tr><td>Prompts with a visibility drop ≥10 pts</td><td>{{ pw.visibility_drops }}</td></tr>{% endif %}
+    {% if pw.top_cited_domains %}<tr><td>Most cited domains</td><td class="small">{% for d in pw.top_cited_domains %}{{ d.domain }} {{ d.pct }}%{% if not loop.last %} · {% endif %}{% endfor %}</td></tr>{% endif %}
+  </table>
+  {% if pw.detail %}<p class="small">{{ pw.detail }}</p>{% endif %}
+  {% endif %}
+
   <h2>This week · top opportunities (15+/20)</h2>
   {% for o in this_week %}{% include "_opp.html" %}{% else %}
   <p class="small">Nothing cleared the 15/20 bar this week. See Monitor below.</p>{% endfor %}

@@ -56,15 +56,18 @@ class GapIndex:
     needs at least two distinctive shared terms.
     """
 
-    def __init__(self, cfg):
+    def __init__(self, cfg, prompts: Optional[List[Dict[str, Any]]] = None):
         pw = cfg["promptwatch"]
-        with open(ROOT / pw["seed_file"], encoding="utf-8") as f:
-            data = json.load(f)
-        self.threshold = float(pw.get("low_visibility_threshold") or data.get("average_visibility", 40))
-        allp = data["prompts"]
+        if prompts is None:
+            with open(ROOT / pw["seed_file"], encoding="utf-8") as f:
+                prompts = json.load(f)["prompts"]
+        allp = [p for p in prompts if p.get("visibility") is not None]
+        avg = sum(p["visibility"] for p in allp) / max(1, len(allp))
+        self.threshold = float(pw.get("low_visibility_threshold") or avg)
         df = Counter(t for p in allp for t in set(tokens(p["prompt"])))
         n = len(allp)
         self.idf = {t: math.log(n / c) for t, c in df.items()}
+        self.by_id = {p["id"]: p for p in allp}
         self.prompts = []
         for p in allp:
             vis = p.get("visibility")
@@ -96,7 +99,7 @@ def relevant(sig: Signal, cfg) -> Tuple[bool, str]:
     bad = contains_any(t, cfg["keywords"]["exclude"])
     if bad:
         return False, f"excluded keyword: {bad[0]}"
-    if sig.source in ("google_trends", "ahrefs"):
+    if sig.source in ("google_trends", "ahrefs", "promptwatch"):
         return True, ""
     brands = cfg["brand"]["aliases"] + [a for c in cfg["competitors"] for a in c["aliases"]]
     if contains_any(t, cfg["keywords"]["include"]) or contains_any(t, brands):
@@ -105,6 +108,8 @@ def relevant(sig: Signal, cfg) -> Tuple[bool, str]:
 
 
 def _format(sig: Signal, t: str) -> str:
+    if sig.source == "promptwatch":
+        return "explainer" if sig.meta.get("kind") == "visibility_drop" else "test"
     if re.search(r"\b(mythe|idee recue|faux|arretez|stop|en fait|contrairement|surcote|inutile|arnaque)\b", t):
         return "contrarian"
     if re.search(r"\b(test|teste|j'ai essaye|comparatif|vs|versus|avis|classement|meilleure?s?)\b", t):
@@ -146,7 +151,11 @@ def score(sig: Signal, cfg, gaps: GapIndex) -> Scored:
         sc.timeliness = min(5, sc.timeliness + 1)
 
     # Gap: overlap with low-visibility PromptWatch prompts
-    sc.gap, sc.gap_prompt = gaps.match(f"{sig.title} {sig.text[:500]}")
+    own = gaps.by_id.get(sig.meta.get("prompt_id", ""))
+    if own:  # a PromptWatch drop is about exactly this prompt
+        sc.gap, sc.gap_prompt = (5 if own["visibility"] < gaps.threshold else 3), own
+    else:
+        sc.gap, sc.gap_prompt = gaps.match(f"{sig.title} {sig.text[:500]}")
 
     # Testability: can we turn this into something concrete and measurable?
     sc.format = _format(sig, t)

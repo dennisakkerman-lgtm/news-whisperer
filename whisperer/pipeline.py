@@ -9,6 +9,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional
 
 from whisperer import db, narrative, report
+from whisperer.promptwatch import PromptWatch
 from whisperer.collectors import REGISTRY, Skipped, fixtures
 from whisperer.core import Signal, load_config
 from whisperer.scoring import URGENCY, GapIndex, bucketize, corroborate, relevant, score
@@ -70,6 +71,30 @@ def _run(cfg, run_id, since, send_email, test) -> int:
     if test:
         stats["_mode"] = "test"
 
+    # Layer 2 · PromptWatch: live prompts for the gap score + its own signals
+    pw = PromptWatch(cfg)
+    prompts, origin = pw.prompts()
+    gaps = GapIndex(cfg, prompts)
+    t0 = time.time()
+    pw_signals, pw_summary = pw.collect(since, gaps.threshold)
+    pw_summary.update({"prompts": len(prompts), "prompts_origin": origin, "low_visibility": len(gaps.prompts),
+                       "threshold": round(gaps.threshold, 1),
+                       "avg_visibility": round(sum(p["visibility"] for p in prompts if p.get("visibility") is not None)
+                                               / max(1, sum(1 for p in prompts if p.get("visibility") is not None)), 1)})
+    if not pw.key and test:
+        pw_signals = fixtures.sample("promptwatch")
+        stats["promptwatch"] = {"status": "test-data", "count": len(pw_signals),
+                                "detail": f"sample data (PROMPTWATCH_API_KEY not set; gap score uses {origin} prompts)"}
+    elif not pw.key:
+        stats["promptwatch"] = {"status": "skipped", "count": 0,
+                                "detail": f"PROMPTWATCH_API_KEY not set; gap score uses {origin} prompts"}
+    else:
+        stats["promptwatch"] = {"status": "error" if pw_summary.get("errors") and not pw_signals else "ok",
+                                "count": len(pw_signals), "detail": "; ".join(pw_summary.get("errors", []))[:300]}
+    stats["promptwatch"]["seconds"] = round(time.time() - t0, 1)
+    stats["_promptwatch"] = pw_summary
+    signals.extend(pw_signals)
+
     # dedupe by URL
     seen, unique = set(), []
     for sig in signals:
@@ -77,7 +102,6 @@ def _run(cfg, run_id, since, send_email, test) -> int:
             seen.add(sig.url)
             unique.append(sig)
 
-    gaps = GapIndex(cfg)
     scored, filtered_out = [], Counter()
     for sig in unique:
         ok, why = relevant(sig, cfg)
@@ -88,7 +112,14 @@ def _run(cfg, run_id, since, send_email, test) -> int:
 
     ranked = bucketize(corroborate(scored), cfg)
     top = [x for x in ranked if x.bucket in ("this_week", "monitor")][: cfg["output"].get("narrative_top_n", 12)]
+    for it in top[:8]:  # attach PromptWatch's own content brief when it has one for the matched prompt
+        rec = it.gap_prompt and pw.recommendations(it.gap_prompt["id"])
+        if rec:
+            it.signal.meta["pw_rec"] = f"{rec.get('title')} ({(rec.get('contentType') or '').lower()}, impact {rec.get('impact')})"
     narrative.enrich(top, cfg)
+    for it in top:
+        if it.signal.meta.get("pw_rec"):
+            it.rationale = f"{it.rationale} PromptWatch brief: {it.signal.meta['pw_rec']}."
 
     stats["_totals"] = {
         "signals": len(signals), "unique": len(unique), "relevant": len(scored), "stories": len(ranked),

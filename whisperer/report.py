@@ -21,10 +21,11 @@ def render_run(session, run: db.Run, cfg) -> str:
     stats = dict(run.stats or {})
     totals = stats.pop("_totals", {})
     stats.pop("_mode", None)
+    pw = stats.pop("_promptwatch", {})
     skip_reasons = Counter(o.skip_reason.split(":")[0] for o in by["skip"])
     for why, n in (totals.get("filtered_out") or {}).items():
         skip_reasons[why] += n
     return env.get_template("report.html").render(
         run=run, cfg=cfg, this_week=by["this_week"], monitor=by["monitor"][:15], skip=by["skip"][:10],
-        skip_reasons=skip_reasons.most_common(), sources=stats, totals=totals, formats=FORMATS,
+        skip_reasons=skip_reasons.most_common(), sources=stats, totals=totals, formats=FORMATS, pw=pw,
     )

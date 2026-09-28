@@ -54,7 +54,17 @@ SAMPLES = {
     ],
 }
 
-LAYER = {"reddit": 1, "youtube": 1, "tiktok": 1, "instagram": 1, "ahrefs": 3}
+SAMPLES["promptwatch"] = [
+    ("AI visibility dropped on “Quelle salle de sport à Lyon est la moins chère ?” (38% → 21%)",
+     "Basic-Fit lost 17 visibility points week over week on this prompt. Quelle salle de sport à Lyon est la moins chère ?",
+     0, 170, {"kind": "visibility_drop", "prev": 38, "cur": 21,
+               "prompt_id": "dfe761a8-0db5-4aa4-99c2-bb61bead0ffc"}),
+    ("AI engines cite example-guide-sport.fr more often for gym questions (4 → 11 citations/week)",
+     "Third-party site gaining AI citations: pitch target for Basic-Fit (get mentioned or cited there). salle de sport",
+     0, 11, {"kind": "rising_cited_domain", "domain": "example-guide-sport.fr", "competitor": False}),
+]
+
+LAYER = {"reddit": 1, "youtube": 1, "tiktok": 1, "instagram": 1, "ahrefs": 3, "promptwatch": 2}
 
 
 def sample(source: str) -> List[Signal]:

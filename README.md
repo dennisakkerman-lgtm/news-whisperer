@@ -14,7 +14,7 @@ cross-references Basic-Fit's low AI-visibility prompts from PromptWatch, and pub
 | 1 Community | Reddit official API | `REDDIT_CLIENT_ID`, `REDDIT_CLIENT_SECRET` | ready, needs keys |
 | 1 Community | YouTube Data API v3 | `YOUTUBE_API_KEY` | ready, needs key |
 | 1 Community | TikTok + Instagram via Apify | `APIFY_TOKEN` | ready, needs token |
-| 2 AI visibility | PromptWatch (project `basic-fit-3`) | seed file `data/promptwatch_prompts.json` | live (153 prompts, 70 below 40.4%) |
+| 2 AI visibility | PromptWatch REST API v2 (project `basic-fit-3`) | `PROMPTWATCH_API_KEY` | ready, needs key; falls back to the seed export (153 prompts, 70 below 40.4%) |
 | 3 SEO | Ahrefs API v3 | `AHREFS_API_KEY` | ready, needs key (endpoints unverified until first run) |
 | 4 Search | Google Trends (pytrends) | – | live |
 | 4 Search | Google Search Console | service account | placeholder, pending client access |
@@ -29,9 +29,15 @@ Everything client-specific lives in `clients/basicfit.yaml` (brand, competitors,
 sources, PromptWatch threshold, seasonality, scoring weights, output). A new client is a new YAML file plus
 `WHISPERER_CLIENT=<name>`.
 
-Refreshing PromptWatch: re-export the project's prompts (id, prompt, averageVisibilityScore, keywords) into
-`data/promptwatch_prompts.json`. Claude can do this with the PromptWatch MCP (`listPrompts`, sorted by
-`averageVisibilityScore`).
+PromptWatch (layer 2) with `PROMPTWATCH_API_KEY` set, every run:
+- pulls all active prompts + average AI visibility (`/prompts`) for the gap score;
+- turns week-over-week visibility drops of 10+ points (`/prompt-visibility-time-series`) into signals;
+- turns third-party domains that AI engines cite increasingly (`/citations/domains-over-time`) into pitch targets;
+- adds brand vs competitor mentions (`/responses/mentions-time-series`) and citation share to the report;
+- attaches PromptWatch's own content brief (`/content-gap/.../recommendations`) when one exists for the matched prompt.
+
+Offsite-mention opportunities are only exposed through the PromptWatch MCP, not the REST API.
+Without a key the gap score uses `data/promptwatch_prompts.json` (export of 28 Sep 2026).
 
 ## Buckets
 
