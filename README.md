@@ -75,3 +75,18 @@ The team can also start a run from the panel ("Run now"; no e-mail is sent for t
 and fills every source that has no credentials yet with sample signals marked `[TEST]` (links go to example.com).
 Test runs get a banner in the panel and report, are invisible to the client login, send no e-mail unless
 `--email` is passed (subject then starts with `[TEST]`), and can be deleted by the team.
+
+## Clients
+
+Each client is one YAML file in `clients/` plus its own Railway services and database, so no client can ever see
+another client's data:
+
+| Client | Config | Panel | Worker (cron) | Database | PromptWatch |
+|---|---|---|---|---|---|
+| Basic-Fit (fr-FR, France) | `clients/basicfit.yaml` | `panel` | `weekly-run` | `Postgres` | project `basic-fit-3` via API key + MCP snapshot (offsite) |
+| Binance (en, global) | `clients/binance.yaml` | `panel-binance` | `weekly-run-binance` | `Postgres-iOWo` | project `binance` via MCP snapshot (`data/binance/`) |
+
+Market-specific behaviour (Google News edition, Trends geo, YouTube region, Apify proxy, Ahrefs domain filter,
+the language Claude writes titles and keywords in, the reviewer note) lives in the `locale:` block of the client
+config. Adding a client: copy a YAML, adjust the values, create the three Railway services with
+`WHISPERER_CLIENT=<name>`, and add the client to the weekly PromptWatch snapshot task.
