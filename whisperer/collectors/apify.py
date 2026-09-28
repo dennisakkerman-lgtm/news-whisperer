@@ -34,7 +34,8 @@ def collect(cfg, since, name) -> List[Signal]:
     if name == "tiktok":
         actor = os.environ.get("APIFY_TIKTOK_ACTOR", "clockworks/tiktok-scraper")
         items = _run(actor, token, {"hashtags": sc["hashtags"], "resultsPerPage": n, "shouldDownloadVideos": False,
-                                    "shouldDownloadCovers": False})
+                                    "shouldDownloadCovers": False, "proxyCountryCode": "FR",
+                                    "oldestPostDateUnified": since.strftime("%Y-%m-%d")})  # only pay for fresh posts
         for it in items:
             dt = parse_dt(it.get("createTimeISO") or it.get("createTime"))
             if dt and dt < since:
@@ -48,7 +49,7 @@ def collect(cfg, since, name) -> List[Signal]:
             ))
     else:
         actor = os.environ.get("APIFY_INSTAGRAM_ACTOR", "apify/instagram-hashtag-scraper")
-        items = _run(actor, token, {"hashtags": sc["hashtags"], "resultsLimit": n})
+        items = _run(actor, token, {"hashtags": sc["hashtags"], "resultsLimit": n, "resultsType": "posts"})
         for it in items:
             dt = parse_dt(it.get("timestamp"))
             if dt and dt < since:
@@ -56,7 +57,7 @@ def collect(cfg, since, name) -> List[Signal]:
             text = it.get("caption", "") or ""
             out.append(Signal(
                 "instagram", 1, text[:140] or "(Instagram post)", it.get("url", ""), dt, text,
-                engagement=int(it.get("likesCount", 0) or 0) // 10 + int(it.get("commentsCount", 0) or 0),
+                engagement=max(0, int(it.get("likesCount", 0) or 0)) // 10 + max(0, int(it.get("commentsCount", 0) or 0)),
                 meta={"author": it.get("ownerUsername"), "likes": it.get("likesCount"),
                       "comments": it.get("commentsCount")},
             ))
