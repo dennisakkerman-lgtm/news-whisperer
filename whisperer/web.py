@@ -32,9 +32,7 @@ STATUSES = ["new", "in_progress", "actioned", "skipped"]
 _running = threading.Lock()
 
 
-@app.on_event("startup")
-def _startup():
-    db.init_db()
+db.init_db()
 
 
 def role(creds: HTTPBasicCredentials = Depends(security)) -> str:
