@@ -83,6 +83,8 @@ promptwatch:
   slug: basic-fit-3
   seed_file: data/promptwatch_prompts.json
   low_visibility_threshold: 40.4
+  drop_alert_points: 10     # week-over-week visibility drop that becomes a signal
+  drop_min_responses: 20    # ignore weeks with fewer AI responses for a prompt
 
 seasonality:
   - {name: rentrée, start: "09-01", end: "09-30", themes: ["rentree", "reprise", "septembre", "bonnes resolutions"]}
@@ -93,6 +95,7 @@ scoring:
   weights: {audience: 1.0, timeliness: 1.0, gap: 1.0, testability: 1.0}
   this_week_min: 15
   this_week_max: 5
+  this_week_per_source: 2   # keep the top 5 varied
   monitor_min: 10
 
 output:

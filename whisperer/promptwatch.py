@@ -1,8 +1,12 @@
 """Layer 2 · PromptWatch REST API v2 (https://server.promptwatch.com/api/v2).
 
-Needs PROMPTWATCH_API_KEY (Settings > API Keys; a project-level key for the Basic-Fit
-project is enough). Without a key, or when the API fails, the pipeline falls back to the
-seed export in data/promptwatch_prompts.json.
+Three sources, in order of preference:
+1. REST API with PROMPTWATCH_API_KEY (Settings > API Keys, project-level key).
+2. data/promptwatch_snapshot.json, refreshed weekly by a Claude task through the PromptWatch
+   MCP (scripts/pw_snapshot.py). Carries prompts + visibility, previous visibility and the
+   offsite-mention opportunities (cited pages naming competitors but not the brand), which
+   only the MCP exposes.
+3. data/promptwatch_prompts.json, the one-off seed export.
 
 Per run it pulls:
 - all active prompts with their average AI visibility (feeds the gap score)
@@ -25,6 +29,15 @@ from whisperer.core import ROOT, Signal
 
 log = logging.getLogger(__name__)
 API = "https://server.promptwatch.com/api/v2"
+SNAPSHOT = ROOT / "data" / "promptwatch_snapshot.json"
+
+
+def _snapshot() -> Optional[Dict[str, Any]]:
+    try:
+        with open(SNAPSHOT, encoding="utf-8") as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return None
 
 
 class PromptWatch:
@@ -60,7 +73,10 @@ class PromptWatch:
                 if out:
                     return out, "api"
             except Exception:
-                log.exception("PromptWatch /prompts failed; using seed file")
+                log.exception("PromptWatch /prompts failed; falling back to snapshot/seed")
+        snap = _snapshot()
+        if snap and snap.get("prompts"):
+            return snap["prompts"], f"MCP snapshot {snap.get('exported', '')[:10]}"
         with open(ROOT / self.pw["seed_file"], encoding="utf-8") as f:
             return json.load(f)["prompts"], "seed"
 
@@ -68,19 +84,25 @@ class PromptWatch:
     def collect(self, since: datetime, low_threshold: float) -> (List[Signal], Dict[str, Any]):
         summary: Dict[str, Any] = {"origin": "seed"}
         if not self.key:
-            summary["detail"] = "PROMPTWATCH_API_KEY not set: gap score uses the seed export"
-            return [], summary
+            snap = _snapshot()
+            if not snap:
+                summary["detail"] = "No PROMPTWATCH_API_KEY and no MCP snapshot: gap score uses the seed export"
+                return [], summary
+            return self._from_snapshot(snap, since)
         summary["origin"] = "api"
         signals: List[Signal] = []
         today = date.today()
-        start = (today - timedelta(days=14)).isoformat()
+        # compare complete ISO weeks only: the running week has too few responses on a Monday
+        last_sunday = today - timedelta(days=today.isoweekday())
+        end = last_sunday.isoformat()
+        start = (last_sunday - timedelta(days=20)).isoformat()
+        min_resp = self.pw.get("drop_min_responses", 20)
         now = datetime.now(timezone.utc)
         base = "https://app.promptwatch.com"
 
         # 1) week-over-week visibility per prompt
         try:
-            ts = self._get("/prompt-visibility-time-series", startDate=start, endDate=today.isoformat(),
-                           range="week", limit=500)
+            ts = self._get("/prompt-visibility-time-series", startDate=start, endDate=end, range="week", limit=500)
             by_prompt: Dict[str, List[dict]] = {}
             for row in ts.get("timeSeries", []):
                 by_prompt.setdefault(row["prompt"]["id"], []).append(row)
@@ -88,6 +110,8 @@ class PromptWatch:
             for rows in by_prompt.values():
                 rows.sort(key=lambda r: r["date"])
                 if len(rows) < 2:
+                    continue
+                if min(rows[-2]["totalResponses"], rows[-1]["totalResponses"]) < min_resp:
                     continue
                 prev, cur = rows[-2]["averageVisibility"], rows[-1]["averageVisibility"]
                 if prev - cur >= self.pw.get("drop_alert_points", 10):
@@ -107,8 +131,8 @@ class PromptWatch:
 
         # 2) cited domains: brand share + rising third-party domains
         try:
-            dom = self._get("/citations/domains-over-time", startDate=(today - timedelta(days=35)).isoformat(),
-                            endDate=today.isoformat(), granularity="weekly", range="WEEKLY", domainLimit=30,
+            dom = self._get("/citations/domains-over-time", startDate=(last_sunday - timedelta(days=34)).isoformat(),
+                            endDate=end, granularity="weekly", range="WEEKLY", domainLimit=30,
                             includeSelf="true")
             brand_dom = self.cfg["brand"]["domain"].replace("www.", "")
             own = [x for x in dom.get("series", []) if brand_dom in x["domain"]]
@@ -144,7 +168,7 @@ class PromptWatch:
 
         # 3) brand vs competitor mentions, this week vs last week
         try:
-            ms = self._get("/responses/mentions-time-series", startDate=start, endDate=today.isoformat(), range="week")
+            ms = self._get("/responses/mentions-time-series", startDate=start, endDate=end, range="week")
             ms = sorted(ms, key=lambda r: r["date"])
             if ms:
                 summary["mentions"] = {"brand": ms[-1].get("brandMentions"), "competitors": ms[-1].get("competitorMentions"),
@@ -152,6 +176,54 @@ class PromptWatch:
         except Exception as exc:
             log.exception("PromptWatch mentions-time-series failed")
             summary.setdefault("errors", []).append(f"mentions: {exc}")
+
+        # offsite-mention opportunities only exist in the MCP: add them from the weekly snapshot
+        snap = _snapshot()
+        if snap:
+            off, off_sum = self._from_snapshot(snap, since, drops=False)
+            signals.extend(off)
+            summary.update({k: v for k, v in off_sum.items() if k.startswith("offsite")})
+            summary["snapshot"] = snap.get("exported", "")[:10]
+        return signals, summary
+
+    def _from_snapshot(self, snap: Dict[str, Any], since: datetime, drops: bool = True) -> (List[Signal], Dict[str, Any]):
+        brand = self.cfg["brand"]["name"]
+        exported = snap.get("exported", "")[:10]
+        summary: Dict[str, Any] = {"origin": f"MCP snapshot {exported}"}
+        signals: List[Signal] = []
+        now = datetime.now(timezone.utc)
+
+        drops = [] if not drops else [(p["prev_visibility"] - p["visibility"], p) for p in snap.get("prompts", [])
+                 if p.get("prev_visibility") is not None and p.get("visibility") is not None
+                 and p["prev_visibility"] - p["visibility"] >= self.pw.get("drop_alert_points", 10)]
+        for delta, p in sorted(drops, key=lambda x: -x[0])[:8]:
+            signals.append(Signal(
+                "promptwatch", 2,
+                f"AI visibility dropped on “{p['prompt']}” ({p['prev_visibility']:.0f}% → {p['visibility']:.0f}%)",
+                f"https://app.promptwatch.com/prompts/{p['id']}", now,
+                f"{brand} lost {delta:.0f} visibility points since the previous snapshot. {p['prompt']}",
+                engagement=int(delta) * 10,
+                meta={"kind": "visibility_drop", "prompt_id": p["id"], "prev": p["prev_visibility"], "cur": p["visibility"]},
+            ))
+        if drops:
+            summary["visibility_drops"] = len(drops)
+
+        offsite = snap.get("offsite", [])
+        fresh = [o for o in offsite if (o.get("first_seen") or "") >= since.isoformat()[:10]]
+        picks = fresh[:10] if fresh else offsite[:5]  # nothing new: surface the biggest standing gaps
+        for o in picks:
+            comps = ", ".join(o.get("competitors") or []) or "competitors"
+            kind = (o.get("content_type") or "page").lower().replace("_", " ")
+            signals.append(Signal(
+                "promptwatch", 2, f"AI-cited {kind} names {comps} but not {brand}: {o['title']}", o["url"],
+                datetime.fromisoformat(o["first_seen"].replace("Z", "+00:00")) if o.get("first_seen") else now,
+                f"Page on {o.get('domain')} is cited {o.get('occurrences')} times in AI answers and mentions {comps}, "
+                f"not {brand}. Outreach target: get {brand} added. salle de sport {o['title']}",
+                engagement=int(o.get("occurrences") or 0),
+                meta={"kind": "offsite_gap", "domain": o.get("domain"), "competitors": o.get("competitors"),
+                      "occurrences": o.get("occurrences"), "new": o in fresh},
+            ))
+        summary.update({"offsite_total": len(offsite), "offsite_new": len(fresh)})
         return signals, summary
 
     def recommendations(self, prompt_id: str) -> Optional[Dict[str, Any]]:

@@ -86,8 +86,9 @@ def _run(cfg, run_id, since, send_email, test) -> int:
         stats["promptwatch"] = {"status": "test-data", "count": len(pw_signals),
                                 "detail": f"sample data (PROMPTWATCH_API_KEY not set; gap score uses {origin} prompts)"}
     elif not pw.key:
-        stats["promptwatch"] = {"status": "skipped", "count": 0,
-                                "detail": f"PROMPTWATCH_API_KEY not set; gap score uses {origin} prompts"}
+        stats["promptwatch"] = {"status": "ok" if pw_signals or pw_summary.get("origin", "").startswith("MCP") else "skipped",
+                                "count": len(pw_signals),
+                                "detail": f"no API key; using {pw_summary.get('origin')} ({origin} prompts)"}
     else:
         stats["promptwatch"] = {"status": "error" if pw_summary.get("errors") and not pw_signals else "ok",
                                 "count": len(pw_signals), "detail": "; ".join(pw_summary.get("errors", []))[:300]}

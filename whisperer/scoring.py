@@ -183,6 +183,9 @@ def corroborate(items: List[Scored]) -> List[Scored]:
     """Merge near-duplicate stories; count distinct sources as corroboration."""
     merged: List[Scored] = []
     for it in sorted(items, key=lambda s: -s.total):
+        if it.signal.source in ("promptwatch", "google_trends", "ahrefs"):  # structured: one row per item
+            merged.append(it)
+            continue
         k = _story_key(it.signal.title)
         home = None
         for m in merged:
@@ -206,18 +209,21 @@ def bucketize(items: List[Scored], cfg) -> List[Scored]:
     for it in items:  # a story several outlets/sources carry reaches more people
         it.audience = min(5, it.audience + min(2, it.corroboration - 1))
     ranked = sorted(items, key=lambda x: (-x.total, -x.signal.engagement))
-    this_week = 0
+    this_week, per_source = 0, Counter()
+    cap = s.get("this_week_per_source", 2)
     for it in ranked:
         single_low = it.corroboration <= 1 and it.audience <= 1
-        if it.total >= s["this_week_min"] and not single_low and this_week < s["this_week_max"]:
+        if (it.total >= s["this_week_min"] and not single_low and this_week < s["this_week_max"]
+                and per_source[it.signal.source] < cap):
             it.bucket = "this_week"
             this_week += 1
+            per_source[it.signal.source] += 1
         elif it.total >= s["monitor_min"]:
             it.bucket = "monitor"
             if single_low:
                 it.skip_reason = "single source, low audience match: needs corroboration"
             elif it.total >= s["this_week_min"]:
-                it.skip_reason = "scored 15+ but this week's top slots are full"
+                it.skip_reason = "scored 15+ but this week's top slots (or this source's share) are full"
             else:
                 it.skip_reason = "promising, below the 15/20 bar"
         else:
