@@ -112,7 +112,7 @@ sources:
     enabled: false
 
 promptwatch:
-  project_id: ""        # filled in once the Binance PromptWatch project exists
+  project_id: 161a584b-e48e-4f06-a33a-0cca5d8c9d8d   # PromptWatch project "binance" (US, en), created 28 Sep 2026
   seed_file: data/binance/promptwatch_prompts.json
   snapshot_file: data/binance/promptwatch_snapshot.json
   low_visibility_threshold: 0   # 0 = use this project's own average visibility
