@@ -11,9 +11,9 @@ import feedparser
 import requests
 
 from whisperer.collectors import Skipped
-from whisperer.core import UA, Signal
+from whisperer.core import UA, Signal, locale
 
-GNEWS = "https://news.google.com/rss/search?q={q}+when:{days}d&hl=fr&gl=FR&ceid=FR:fr"
+GNEWS = "https://news.google.com/rss/search?q={q}+when:{days}d&hl={hl}&gl={gl}&ceid={ceid}"
 
 
 def _entry_dt(e):
@@ -36,9 +36,11 @@ def collect_google_news(cfg, since) -> List[Signal]:
     if not sc.get("enabled"):
         raise Skipped("disabled")
     days = cfg["output"]["lookback_days"]
+    loc = locale(cfg)
     out = []
     for q in sc["queries"]:
-        feed = _fetch(GNEWS.format(q=quote_plus(q), days=days))
+        feed = _fetch(GNEWS.format(q=quote_plus(q), days=days, hl=loc["gnews_hl"], gl=loc["gnews_gl"],
+                                   ceid=loc["gnews_ceid"]))
         for e in feed.entries:
             dt = _entry_dt(e)
             if dt and dt < since:

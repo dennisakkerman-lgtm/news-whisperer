@@ -69,7 +69,7 @@
     {% for k, v in formats.items() %}<br><strong>{{ k }}</strong>: {{ v }}{% endfor %}
     <br><br><strong>Score.</strong> Audience + timeliness + gap + testability, 0-5 each (deterministic, out of 20).
     Narrative score (0-10) is an editorial read by Claude, shown separately.
-    <br>Any brief promoted to publication passes through the native French reviewer before leaving Seeders.
+    <br>{{ reviewer_note }}
   </footer>
 </div></body>
 </html>

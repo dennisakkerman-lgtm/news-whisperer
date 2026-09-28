@@ -7,7 +7,7 @@ from typing import Dict, List
 import requests
 
 from whisperer.collectors import Skipped
-from whisperer.core import Signal, parse_dt
+from whisperer.core import Signal, locale, parse_dt
 
 API = "https://www.googleapis.com/youtube/v3"
 
@@ -27,10 +27,12 @@ def collect(cfg, since, name="youtube") -> List[Signal]:
         raise Skipped("YOUTUBE_API_KEY not set")
 
     after = since.strftime("%Y-%m-%dT%H:%M:%SZ")
+    loc = locale(cfg)
+    geo = {k: v for k, v in (("regionCode", loc["youtube_region"]), ("relevanceLanguage", loc["youtube_language"])) if v}
     hits: Dict[str, dict] = {}
     for q in sc.get("queries", []):
-        data = _get("search", key, part="snippet", q=q, type="video", regionCode="FR", relevanceLanguage="fr",
-                    publishedAfter=after, order="viewCount", maxResults=15)
+        data = _get("search", key, part="snippet", q=q, type="video", publishedAfter=after, order="viewCount",
+                    maxResults=15, **geo)
         for it in data.get("items", []):
             hits[it["id"]["videoId"]] = {"snippet": it["snippet"], "query": q}
 

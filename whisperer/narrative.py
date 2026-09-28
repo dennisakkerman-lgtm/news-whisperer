@@ -10,6 +10,7 @@ import logging
 import os
 from typing import List
 
+from whisperer.core import locale
 from whisperer.scoring import FORMATS, Scored
 
 log = logging.getLogger(__name__)
@@ -37,13 +38,13 @@ SCHEMA = {
     "additionalProperties": False,
 }
 
-SYSTEM = """You are a content strategist at Seeders, a digital PR and SEO agency, working on the {brand} account (gyms, France).
-Each week you receive scored signals from French social media, news, search trends and AI-visibility data.
+SYSTEM = """You are a content strategist at Seeders, a digital PR and SEO agency, working on the {brand} account ({sector}, {market}).
+Each week you receive scored signals from social media, news, search trends and AI-visibility data for this market.
 For every signal write:
-- title: a working title in French for a piece of content {brand} could publish or pitch.
-- narrative_score: 0-10, how strong the story is for French media and communities (newsworthiness, emotion, novelty). Be strict; 8+ is rare.
-- keyword: the French search keyword a brief should target.
-- rationale: 2-3 sentences in {lang} (the reviewing team reads {lang}, even though the sources are French) on why this matters now for {brand}, referencing the evidence and, when given, the PromptWatch prompt where {brand} has low AI visibility.
+- title: a working title in {content_lang} for a piece of content {brand} could publish or pitch.
+- narrative_score: 0-10, how strong the story is for media and communities in this market (newsworthiness, emotion, novelty). Be strict; 8+ is rare.
+- keyword: the {content_lang} search keyword a brief should target.
+- rationale: 2-3 sentences in {lang} (the reviewing team reads {lang}) on why this matters now for {brand}, referencing the evidence and, when given, the PromptWatch prompt where {brand} has low AI visibility.
 Stay factual: only use what is in the signal. Do not invent statistics."""
 
 
@@ -57,7 +58,8 @@ def enrich(items: List[Scored], cfg) -> None:
     import anthropic
 
     client = anthropic.Anthropic()
-    lang = "English" if cfg["output"].get("report_language", "en") == "en" else "French"
+    loc = locale(cfg)
+    lang = "English" if cfg["output"].get("report_language", "en") == "en" else loc["content_language"]
     payload = []
     for i, it in enumerate(items):
         payload.append({
@@ -74,7 +76,8 @@ def enrich(items: List[Scored], cfg) -> None:
         resp = client.beta.messages.create(
             model=os.environ.get("CLAUDE_MODEL", "claude-opus-5"),
             max_tokens=16000,
-            system=SYSTEM.format(brand=cfg["brand"]["name"], lang=lang),
+            system=SYSTEM.format(brand=cfg["brand"]["name"], lang=lang, sector=loc["sector"], market=loc["market"],
+                                 content_lang=loc["content_language"]) + cfg.get("narrative_guidance", ""),
             messages=[{"role": "user", "content": json.dumps(payload, ensure_ascii=False)}],
             output_config={"effort": "medium", "format": {"type": "json_schema", "schema": SCHEMA}},
             betas=["server-side-fallback-2026-07-01"],

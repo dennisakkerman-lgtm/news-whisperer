@@ -41,6 +41,24 @@ def load_config(client: Optional[str] = None) -> Dict[str, Any]:
     return cfg
 
 
+LOCALE_DEFAULTS = {
+    "gnews_hl": "fr", "gnews_gl": "FR", "gnews_ceid": "FR:fr",
+    "trends_hl": "fr-FR", "trends_geo": "FR", "trends_tz": 60,
+    "youtube_region": "FR", "youtube_language": "fr",
+    "proxy_country": "FR",
+    "domain_suffixes": [".fr"],          # Ahrefs: only count domains with these suffixes ([] = any)
+    "content_language": "French",        # language of titles/keywords Claude writes
+    "market": "France",
+    "sector": "gyms",
+    "topic_term": "salle de sport",      # generic topic word used to anchor structured signals
+    "reviewer_note": "Any brief promoted to publication passes through the native French reviewer before leaving Seeders.",
+}
+
+
+def locale(cfg) -> Dict[str, Any]:
+    return {**LOCALE_DEFAULTS, **(cfg.get("locale") or {})}
+
+
 def norm(text: str) -> str:
     """Lowercase, strip accents, collapse whitespace."""
     text = unicodedata.normalize("NFKD", text or "")

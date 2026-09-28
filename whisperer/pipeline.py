@@ -81,6 +81,8 @@ def _run(cfg, run_id, since, send_email, test) -> int:
                        "threshold": round(gaps.threshold, 1),
                        "avg_visibility": round(sum(p["visibility"] for p in prompts if p.get("visibility") is not None)
                                                / max(1, sum(1 for p in prompts if p.get("visibility") is not None)), 1)})
+    if not prompts:
+        pw_summary["detail"] = "No PromptWatch prompts for this client yet: gap score is 0 until the project has data."
     if not pw.key and test:
         pw_signals = fixtures.sample("promptwatch")
         stats["promptwatch"] = {"status": "test-data", "count": len(pw_signals),

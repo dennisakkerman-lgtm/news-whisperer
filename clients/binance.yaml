@@ -1,0 +1,138 @@
+# News Whisperer · client config
+# Same shape for every client; only the values change.
+config_version: "2026-09-28.1"
+
+brand:
+  name: Binance
+  aliases: ["binance"]
+  domain: binance.com
+  language: en
+  geo: global
+  cities: []            # global scope: no city targeting
+
+locale:
+  gnews_hl: en-US
+  gnews_gl: US
+  gnews_ceid: "US:en"
+  trends_hl: en-US
+  trends_geo: [US, GB]  # English-speaking markets; "" would be worldwide (noisy)
+  trends_tz: 0
+  youtube_region: ""    # no region filter
+  youtube_language: en
+  proxy_country: ""     # no Apify proxy pinning
+  domain_suffixes: []   # Ahrefs: any domain (spam TLDs and low DR are still filtered)
+  content_language: English
+  market: "global, English-language"
+  sector: "crypto exchange"
+  topic_term: "crypto exchange"
+  reviewer_note: >-
+    Any brief promoted to publication passes a Seeders editor and Binance's compliance review before leaving Seeders.
+    Crypto marketing is a regulated financial promotion in many markets (e.g. EU MiCA, UK FCA).
+
+# Appended to Claude's instructions for this client
+narrative_guidance: |
+
+  Crypto-specific rules: never frame an idea as investment advice, a price prediction or a promise of returns.
+  Prefer education, safety, product explainers, transparency and regulation angles. Flag in the rationale when an idea
+  touches a regulated topic (listings, yields/earn products, derivatives, a specific jurisdiction's rules).
+
+competitors:
+  - {name: Coinbase, aliases: ["coinbase"], domain: coinbase.com}
+  - {name: Kraken, aliases: ["kraken exchange", "kraken"], domain: kraken.com}
+  - {name: Bybit, aliases: ["bybit"], domain: bybit.com}
+  - {name: OKX, aliases: ["okx"], domain: okx.com}
+  - {name: Bitpanda, aliases: ["bitpanda"], domain: bitpanda.com}
+  - {name: Bitvavo, aliases: ["bitvavo"], domain: bitvavo.com}
+  - {name: Crypto.com, aliases: ["crypto.com"], domain: crypto.com}
+  - {name: eToro, aliases: ["etoro"], domain: etoro.com}
+
+# Proposed personas (not from a client audit yet): adjust after kickoff
+personas:
+  Crypto Beginner: ["beginner", "how to buy", "first time", "getting started", "explained", "what is", "newbie", "easy"]
+  Active Trader: ["futures", "leverage", "trading fees", "spot trading", "liquidity", "order book", "day trading", "margin"]
+  Long-term Holder: ["hodl", "long term", "dca", "dollar cost", "retirement", "store of value", "portfolio"]
+  Security & Trust Seeker: ["hack", "security", "safe", "proof of reserves", "scam", "custody", "self-custody", "regulated", "license"]
+  Fee Hunter: ["fees", "cheapest", "lowest fee", "free", "cashback", "promo", "compare"]
+  Web3 & DeFi Explorer: ["defi", "web3", "staking", "yield", "nft", "layer 2", "on-chain", "wallet", "airdrop"]
+
+keywords:
+  include: ["crypto", "cryptocurrency", "bitcoin", "btc", "ethereum", "stablecoin", "usdt", "usdc", "altcoin", "defi",
+            "web3", "blockchain", "crypto exchange", "mica", "bitcoin etf", "crypto etf", "binance"]
+  exclude: ["price prediction", "price chart", "price analysis", "casino", "betting", "spread", "sportsbook", "giveaway",
+            "sponsored", "paid content", "press release", "job opening", "we're hiring", "horoscope", "tariff"]
+  # skip content published by the brand itself (announcements, Binance Square posts)
+  own_publishers: ["binance", "binance square", "binance academy", "binance blog"]
+
+sources:
+  google_news:
+    enabled: true
+    queries: ["Binance", "crypto exchange", "bitcoin ETF", "stablecoin regulation", "MiCA crypto", "crypto hack",
+              "Coinbase", "crypto adoption", "proof of reserves", "crypto tax"]
+  rss:
+    enabled: true
+    feeds:
+      - https://www.coindesk.com/arc/outboundfeeds/rss/
+      - https://cointelegraph.com/rss
+      - https://www.theblock.co/rss.xml
+      - https://decrypt.co/feed
+      - https://blockworks.co/feed
+      - https://bitcoinmagazine.com/.rss/full/
+      - https://thedefiant.io/api/feed
+      - https://www.dlnews.com/arc/outboundfeeds/rss/
+      - https://beincrypto.com/feed/
+  reddit:
+    enabled: true
+    subreddits: [CryptoCurrency, Bitcoin, ethereum, binance, CryptoMarkets, defi, BitcoinBeginners, ethtrader]
+    limit_per_sub: 50
+  youtube:
+    enabled: true
+    queries: ["binance", "best crypto exchange", "how to buy bitcoin", "crypto exchange review"]
+    channel_handles: ["@CoinBureau", "@Bankless", "@AltcoinDaily", "@InvestAnswers", "@TheDefiant"]
+  tiktok:
+    enabled: true
+    hashtags: [crypto, bitcoin, binance, cryptotok, cryptonews]
+    results_per_hashtag: 30
+  instagram:
+    enabled: true
+    hashtags: [crypto, bitcoin, binance, cryptonews]
+    results_per_hashtag: 30
+  google_trends:
+    enabled: true
+    seeds: ["binance", "crypto exchange", "buy bitcoin", "stablecoin", "crypto wallet", "bitcoin etf"]
+  ahrefs:
+    enabled: true
+    backlink_keywords: ["best", "top ", "review", " vs ", "compare", "guide", "how to buy", "alternatives", "ranking"]
+    topic_keywords: ["crypto", "exchange", "bitcoin", "trading"]
+    exclude_domains: [google., facebook.com, instagram.com, tiktok.com, youtube.com, linkedin.com, x.com, twitter.com,
+                      reddit.com, medium.com, github.com, coinmarketcap.com, coingecko.com, tradingview.com, yandex.,
+                      coinbase.com, kraken.com, bybit.com, okx.com, bitpanda.com, bitvavo.com, crypto.com, etoro.com]
+    min_dr: 40
+    link_gap_min_dr: 50
+  gsc:
+    enabled: false
+
+promptwatch:
+  project_id: ""        # filled in once the Binance PromptWatch project exists
+  seed_file: data/binance/promptwatch_prompts.json
+  snapshot_file: data/binance/promptwatch_snapshot.json
+  low_visibility_threshold: 0   # 0 = use this project's own average visibility
+  drop_alert_points: 10
+  drop_min_responses: 20
+
+seasonality:
+  - {name: tax-season, start: "02-15", end: "04-30", themes: ["tax", "irs", "capital gains", "tax return"]}
+  - {name: year-end, start: "12-01", end: "12-31", themes: ["year in review", "outlook", "predictions", "wrapped"]}
+
+scoring:
+  weights: {audience: 1.0, timeliness: 1.0, gap: 1.0, testability: 1.0}
+  this_week_min: 15
+  this_week_max: 5
+  this_week_per_source: 2
+  monitor_min: 10
+
+output:
+  lookback_days: 7
+  weekly_report: true
+  client_panel: true
+  report_language: en
+  narrative_top_n: 12

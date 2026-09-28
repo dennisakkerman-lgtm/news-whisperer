@@ -16,7 +16,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-OUT = ROOT / "data" / "promptwatch_snapshot.json"
 
 
 def _load(path: str) -> dict:
@@ -29,7 +28,11 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--prompts", nargs="*", default=[])
     ap.add_argument("--offsite", nargs="*", default=[])
+    ap.add_argument("--out", default="data/promptwatch_snapshot.json", help="per client, e.g. data/binance/promptwatch_snapshot.json")
+    ap.add_argument("--project-id", default="5a7e8d16-e318-4f7c-bab1-182ed3a9adb3")
     a = ap.parse_args()
+    OUT = ROOT / a.out
+    OUT.parent.mkdir(parents=True, exist_ok=True)
 
     old = json.loads(OUT.read_text(encoding="utf-8")) if OUT.exists() else {}
     old_vis = {p["id"]: p.get("visibility") for p in old.get("prompts", [])}
@@ -62,7 +65,7 @@ def main():
 
     snap = {
         "exported": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-        "project_id": old.get("project_id", "5a7e8d16-e318-4f7c-bab1-182ed3a9adb3"),
+        "project_id": a.project_id,
         "prompts": list(prompts.values()) or old.get("prompts", []),
         "offsite": sorted(offsite, key=lambda x: -x["occurrences"]) or old.get("offsite", []),
     }

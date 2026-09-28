@@ -10,7 +10,7 @@ from typing import List
 import requests
 
 from whisperer.collectors import Skipped
-from whisperer.core import Signal, parse_dt
+from whisperer.core import Signal, locale, parse_dt
 
 RUN = "https://api.apify.com/v2/acts/{actor}/run-sync-get-dataset-items"
 
@@ -34,7 +34,8 @@ def collect(cfg, since, name) -> List[Signal]:
     if name == "tiktok":
         actor = os.environ.get("APIFY_TIKTOK_ACTOR", "clockworks/tiktok-scraper")
         items = _run(actor, token, {"hashtags": sc["hashtags"], "resultsPerPage": n, "shouldDownloadVideos": False,
-                                    "shouldDownloadCovers": False, "proxyCountryCode": "FR",
+                                    "shouldDownloadCovers": False,
+                                    **({"proxyCountryCode": locale(cfg)["proxy_country"]} if locale(cfg)["proxy_country"] else {}),
                                     "oldestPostDateUnified": since.strftime("%Y-%m-%d")})  # only pay for fresh posts
         for it in items:
             dt = parse_dt(it.get("createTimeISO") or it.get("createTime"))

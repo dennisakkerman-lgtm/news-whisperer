@@ -32,6 +32,7 @@ personas:
 keywords:
   include: ["salle de sport", "salles de sport", "gym", "musculation", "fitness", "remise en forme", "abonnement fitness",
             "24h/24", "coach sportif", "cardio", "rowing", "pilates", "basic-fit", "basic fit", "entrainement", "sport en salle"]
+  own_publishers: ["basic-fit", "basic fit"]
   exclude: ["recrutement", "carriere", "offre d'emploi", "boursorama", "action bourse", "cotation", "cours de bourse",
             "dividende", "resultats financiers", "chiffre d'affaires semestriel", "football", "ligue 1",
             "ligue des champions", "mercato", "rooftop", "hammam", "immobilier", "a vendre", "voiture", "automobile"]
@@ -89,6 +90,7 @@ promptwatch:
   project_id: 5a7e8d16-e318-4f7c-bab1-182ed3a9adb3
   slug: basic-fit-3
   seed_file: data/promptwatch_prompts.json
+  snapshot_file: data/promptwatch_snapshot.json
   low_visibility_threshold: 40.4
   drop_alert_points: 10     # week-over-week visibility drop that becomes a signal
   drop_min_responses: 20    # ignore weeks with fewer AI responses for a prompt

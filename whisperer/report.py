@@ -7,7 +7,7 @@ from jinja2 import Environment, FileSystemLoader, select_autoescape
 from sqlalchemy import select
 
 from whisperer import db
-from whisperer.core import ROOT
+from whisperer.core import ROOT, locale
 from whisperer.scoring import FORMATS
 
 env = Environment(loader=FileSystemLoader(ROOT / "whisperer" / "templates"), autoescape=select_autoescape())
@@ -28,4 +28,5 @@ def render_run(session, run: db.Run, cfg) -> str:
     return env.get_template("report.html").render(
         run=run, cfg=cfg, this_week=by["this_week"], monitor=by["monitor"][:15], skip=by["skip"][:10],
         skip_reasons=skip_reasons.most_common(), sources=stats, totals=totals, formats=FORMATS, pw=pw,
+        reviewer_note=locale(cfg)["reviewer_note"],
     )

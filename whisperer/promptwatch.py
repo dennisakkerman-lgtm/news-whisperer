@@ -25,30 +25,32 @@ from typing import Any, Dict, List, Optional
 
 import requests
 
-from whisperer.core import ROOT, Signal
+from whisperer.core import ROOT, Signal, locale
 
 log = logging.getLogger(__name__)
 API = "https://server.promptwatch.com/api/v2"
-SNAPSHOT = ROOT / "data" / "promptwatch_snapshot.json"
 
 
-def _snapshot() -> Optional[Dict[str, Any]]:
+def _read_json(path) -> Optional[Dict[str, Any]]:
     try:
-        with open(SNAPSHOT, encoding="utf-8") as f:
+        with open(ROOT / path, encoding="utf-8") as f:
             return json.load(f)
-    except (OSError, ValueError):
+    except (OSError, ValueError, TypeError):
         return None
 
 
 class PromptWatch:
     def __init__(self, cfg):
         self.cfg = cfg
-        self.pw = cfg["promptwatch"]
-        self.key = os.environ.get("PROMPTWATCH_API_KEY")
+        self.pw = cfg.get("promptwatch") or {}
+        self.key = os.environ.get("PROMPTWATCH_API_KEY") if self.pw.get("project_id") else None
         self.s = requests.Session()
         if self.key:
             self.s.headers.update({"X-API-Key": self.key, "X-Project-Id": self.pw["project_id"],
                                    "Accept": "application/json"})
+
+    def _snapshot(self) -> Optional[Dict[str, Any]]:
+        return _read_json(self.pw.get("snapshot_file", "data/promptwatch_snapshot.json"))
 
     def _get(self, path: str, **params) -> Any:
         r = self.s.get(f"{API}{path}", params={k: v for k, v in params.items() if v is not None}, timeout=60)
@@ -74,17 +76,17 @@ class PromptWatch:
                     return out, "api"
             except Exception:
                 log.exception("PromptWatch /prompts failed; falling back to snapshot/seed")
-        snap = _snapshot()
+        snap = self._snapshot()
         if snap and snap.get("prompts"):
             return snap["prompts"], f"MCP snapshot {snap.get('exported', '')[:10]}"
-        with open(ROOT / self.pw["seed_file"], encoding="utf-8") as f:
-            return json.load(f)["prompts"], "seed"
+        seed = _read_json(self.pw.get("seed_file"))
+        return (seed or {}).get("prompts", []), ("seed" if seed else "none")
 
     # --- signals + summary -------------------------------------------------
     def collect(self, since: datetime, low_threshold: float) -> (List[Signal], Dict[str, Any]):
         summary: Dict[str, Any] = {"origin": "seed"}
         if not self.key:
-            snap = _snapshot()
+            snap = self._snapshot()
             if not snap:
                 summary["detail"] = "No PROMPTWATCH_API_KEY and no MCP snapshot: gap score uses the seed export"
                 return [], summary
@@ -155,7 +157,7 @@ class PromptWatch:
                     f"https://{x['domain']}", now,
                     ("Competitor domain gaining AI citations." if is_comp else
                      f"Third-party site gaining AI citations: pitch target for {self.cfg['brand']['name']} "
-                     "(get mentioned or cited there). salle de sport"),
+                     f"(get mentioned or cited there). {locale(self.cfg)['topic_term']}"),
                     engagement=int(cur),
                     meta={"kind": "rising_cited_domain", "domain": x["domain"], "competitor": is_comp,
                           "share_pct": x.get("percentage")},
@@ -178,7 +180,7 @@ class PromptWatch:
             summary.setdefault("errors", []).append(f"mentions: {exc}")
 
         # offsite-mention opportunities only exist in the MCP: add them from the weekly snapshot
-        snap = _snapshot()
+        snap = self._snapshot()
         if snap:
             off, off_sum = self._from_snapshot(snap, since, drops=False)
             signals.extend(off)
@@ -218,7 +220,7 @@ class PromptWatch:
                 "promptwatch", 2, f"AI-cited {kind} names {comps} but not {brand}: {o['title']}", o["url"],
                 datetime.fromisoformat(o["first_seen"].replace("Z", "+00:00")) if o.get("first_seen") else now,
                 f"Page on {o.get('domain')} is cited {o.get('occurrences')} times in AI answers and mentions {comps}, "
-                f"not {brand}. Outreach target: get {brand} added. salle de sport {o['title']}",
+                f"not {brand}. Outreach target: get {brand} added. {locale(self.cfg)['topic_term']} {o['title']}",
                 engagement=int(o.get("occurrences") or 0),
                 meta={"kind": "offsite_gap", "domain": o.get("domain"), "competitors": o.get("competitors"),
                       "occurrences": o.get("occurrences"), "new": o in fresh},

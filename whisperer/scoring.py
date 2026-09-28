@@ -57,15 +57,18 @@ class GapIndex:
     """
 
     def __init__(self, cfg, prompts: Optional[List[Dict[str, Any]]] = None):
-        pw = cfg["promptwatch"]
+        pw = cfg.get("promptwatch") or {}
         if prompts is None:
-            with open(ROOT / pw["seed_file"], encoding="utf-8") as f:
-                prompts = json.load(f)["prompts"]
+            try:
+                with open(ROOT / pw["seed_file"], encoding="utf-8") as f:
+                    prompts = json.load(f)["prompts"]
+            except (KeyError, OSError):
+                prompts = []
         allp = [p for p in prompts if p.get("visibility") is not None]
         avg = sum(p["visibility"] for p in allp) / max(1, len(allp))
-        self.threshold = float(pw.get("low_visibility_threshold") or avg)
+        self.threshold = float(pw.get("low_visibility_threshold") or avg or 40)
         df = Counter(t for p in allp for t in set(tokens(p["prompt"])))
-        n = len(allp)
+        n = max(1, len(allp))
         self.idf = {t: math.log(n / c) for t, c in df.items()}
         self.by_id = {p["id"]: p for p in allp}
         self.prompts = []
@@ -95,12 +98,20 @@ class GapIndex:
 
 
 def relevant(sig: Signal, cfg) -> Tuple[bool, str]:
+    own = [norm(x) for x in cfg["keywords"].get("own_publishers", [])]
+    pub = norm(sig.meta.get("publisher", ""))
+    if pub and pub in own or cfg["brand"]["domain"] in (sig.url or ""):
+        return False, "own content: published by the brand itself"
     t = norm(f"{sig.title} {sig.text}")
     bad = contains_any(t, cfg["keywords"]["exclude"])
     if bad:
         return False, f"excluded keyword: {bad[0]}"
-    if sig.source in ("google_trends", "ahrefs", "promptwatch"):
+    if sig.source in ("ahrefs", "promptwatch"):
         return True, ""
+    if sig.source == "google_trends":
+        q = norm(sig.meta.get("query", ""))
+        terms = cfg["keywords"]["include"] + cfg["brand"]["aliases"] + [a for c in cfg["competitors"] for a in c["aliases"]]
+        return (True, "") if contains_any(q, terms) else (False, "off-topic (no include keyword or brand mention)")
     brands = cfg["brand"]["aliases"] + [a for c in cfg["competitors"] for a in c["aliases"]]
     if contains_any(t, cfg["keywords"]["include"]) or contains_any(t, brands):
         return True, ""

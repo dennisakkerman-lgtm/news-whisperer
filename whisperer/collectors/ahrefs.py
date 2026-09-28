@@ -11,7 +11,7 @@ from typing import List, Set
 import requests
 
 from whisperer.collectors import Skipped
-from whisperer.core import Signal, contains_any, norm, parse_dt
+from whisperer.core import Signal, contains_any, locale, norm, parse_dt
 
 API = "https://api.ahrefs.com/v3/site-explorer"
 
@@ -26,8 +26,10 @@ def _get(path, key, **params):
 SPAM_TLDS = (".store", ".shop", ".xyz", ".click", ".site", ".online", ".top", ".ru", ".cn", ".info", ".biz", ".icu")
 
 
-def _is_fr(host: str) -> bool:
-    return host.endswith(".fr") or ".fr/" in host or host.startswith("fr.")
+def _in_market(host: str, suffixes) -> bool:
+    if not suffixes:
+        return True
+    return any(host.endswith(sfx) or host.startswith(sfx.strip(".") + ".") for sfx in suffixes)
 
 
 def _refdomains(key, target, min_dr=0) -> Set[str]:
@@ -49,6 +51,7 @@ def collect(cfg, since, name="ahrefs") -> List[Signal]:
     topic = sc.get("topic_keywords", [])
     excl = [str(x) for x in sc.get("exclude_domains", [])]
     min_dr = sc.get("min_dr", 0)
+    sfx = locale(cfg)["domain_suffixes"]
     brand_domain = cfg["brand"]["domain"]
     out, seen_domains = [], set()
 
@@ -64,7 +67,7 @@ def collect(cfg, since, name="ahrefs") -> List[Signal]:
             hay = norm(title + " " + url.replace("-", " "))
             for a in comp["aliases"]:  # "Fitness Park" must not satisfy the topic check on its own
                 hay = hay.replace(norm(a), " ")
-            if not (_is_fr(host) or "/fr" in url):
+            if not (_in_market(host, sfx) or any(f"/{s.strip('.')}" in url for s in sfx)):
                 continue
             if any(x in host for x in excl) or host in seen_domains:
                 continue
@@ -86,7 +89,7 @@ def collect(cfg, since, name="ahrefs") -> List[Signal]:
     counts = {}
     gap_dr = sc.get("link_gap_min_dr", 30)
     for comp in cfg["competitors"][:4]:
-        for d in {x for x in _refdomains(key, comp["domain"], gap_dr) if _is_fr(x)} - brand_refs:
+        for d in {x for x in _refdomains(key, comp["domain"], gap_dr) if _in_market(x, sfx)} - brand_refs:
             counts.setdefault(d, []).append(comp["name"])
     for d, comps in sorted(counts.items(), key=lambda kv: -len(kv[1]))[:25]:
         if len(comps) < 2:
