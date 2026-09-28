@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ cfg.brand.name }} News Whisperer · {{ run.started_at.strftime('%d %b %Y') }}</title>
+<style>
+  body{margin:0;background:#f4f4f2;color:#1d1d1b;font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif}
+  .wrap{max-width:760px;margin:0 auto;padding:24px 16px}
+  h1{font-size:22px;margin:0 0 4px} h2{font-size:17px;margin:32px 0 10px;padding-bottom:6px;border-bottom:2px solid #1d1d1b}
+  .meta{color:#666;font-size:13px}
+  .card{background:#fff;border:1px solid #e3e3df;border-radius:8px;padding:16px;margin:0 0 12px}
+  .card h3{margin:0 0 6px;font-size:16px}
+  .pills span{display:inline-block;font-size:12px;background:#eee;border-radius:10px;padding:1px 8px;margin:0 4px 4px 0}
+  .pills .total{background:#ff7300;color:#fff;font-weight:600}
+  .pills .fmt{background:#1d1d1b;color:#fff}
+  .small{font-size:13px;color:#555}
+  a{color:#c45500}
+  table{width:100%;border-collapse:collapse;font-size:13px} td,th{text-align:left;padding:5px 6px;border-bottom:1px solid #e3e3df}
+  .ok{color:#2a7a2a}.error{color:#b00020}.skipped{color:#888}
+  ul{padding-left:18px;margin:6px 0}
+  footer{margin-top:32px;font-size:12px;color:#666}
+</style>
+</head>
+<body><div class="wrap">
+  <h1>{{ cfg.brand.name }} · News Whisperer</h1>
+  <div class="meta">
+    Run {{ run.started_at.strftime('%A %d %B %Y') }} · {{ cfg.brand.domain }} · config {{ run.config_version }} ·
+    {{ totals.signals or 0 }} signals processed ({{ totals.relevant or 0 }} relevant) · lookback {{ run.lookback_days }} days
+  </div>
+  <!--PANEL_LINK-->
+
+  <h2>This week · top opportunities (15+/20)</h2>
+  {% for o in this_week %}{% include "_opp.html" %}{% else %}
+  <p class="small">Nothing cleared the 15/20 bar this week. See Monitor below.</p>{% endfor %}
+
+  <h2>Monitor · needs corroboration</h2>
+  {% for o in monitor %}{% include "_opp.html" %}{% else %}<p class="small">No signals to monitor.</p>{% endfor %}
+
+  <h2>Skip · filtered out</h2>
+  <table>{% for why, n in skip_reasons %}<tr><td>{{ why }}</td><td>{{ n }}</td></tr>{% endfor %}</table>
+  {% if skip %}<p class="small">Highest-scoring skipped items:</p><ul class="small">
+  {% for o in skip %}<li><a href="{{ o.url }}">{{ o.signal_title[:110] }}</a> · {{ o.total }}/20 · {{ o.skip_reason }}</li>{% endfor %}</ul>{% endif %}
+
+  <h2>Sources</h2>
+  <table><tr><th>Source</th><th>Status</th><th>Signals</th><th></th></tr>
+  {% for name, s in sources.items() %}
+    <tr><td>{{ name }}</td><td class="{{ s.status }}">{{ s.status }}</td><td>{{ s.count }}</td><td class="small">{{ s.detail or '' }}</td></tr>
+  {% endfor %}</table>
+  {% if totals.gap_prompts %}<p class="small">AI-visibility gap reference: {{ totals.gap_prompts }} PromptWatch prompts below {{ totals.gap_threshold }}% visibility.</p>{% endif %}
+
+  <footer>
+    <strong>Formats.</strong>
+    {% for k, v in formats.items() %}<br><strong>{{ k }}</strong>: {{ v }}{% endfor %}
+    <br><br><strong>Score.</strong> Audience + timeliness + gap + testability, 0-5 each (deterministic, out of 20).
+    Narrative score (0-10) is an editorial read by Claude, shown separately.
+    <br>Any brief promoted to publication passes through the native French reviewer before leaving Seeders.
+  </footer>
+</div></body>
+</html>

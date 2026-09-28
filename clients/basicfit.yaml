@@ -1,0 +1,103 @@
+# News Whisperer · client config
+# Same shape for every client; only the values change.
+config_version: "2026-09-28.1"
+
+brand:
+  name: Basic-Fit
+  aliases: ["basic-fit", "basic fit", "basicfit"]
+  domain: basic-fit.com
+  language: fr
+  geo: FR
+  cities: [Paris, Lyon, Marseille, Toulouse, Bordeaux, Lille, Nice, Nantes, Montpellier, Strasbourg, Rennes]
+
+competitors:
+  - {name: Fitness Park, aliases: ["fitness park"], domain: fitnesspark.fr}
+  - {name: L'Orange Bleue, aliases: ["orange bleue", "l'orange bleue"], domain: lorangebleue.fr}
+  - {name: Keep Cool, aliases: ["keep cool", "keepcool"], domain: keepcool.fr}
+  - {name: Neoness, aliases: ["neoness"], domain: neoness.fr}
+  - {name: Anytime Fitness, aliases: ["anytime fitness"], domain: anytimefitness.fr}
+  - {name: McFIT, aliases: ["mcfit"], domain: mcfit.com}
+  - {name: PureGym, aliases: ["puregym", "pure gym"], domain: puregym.com}
+  - {name: On Air Fitness, aliases: ["on air fitness"], domain: onair-fitness.fr}
+
+# Keyword hints per persona (matched against accent-stripped lowercase text)
+personas:
+  Convenience Seeker: ["24h/24", "24/7", "horaires", "proche", "pres de chez", "acces", "ouvert", "parking", "transports"]
+  Budget First-Timer: ["pas cher", "prix", "tarif", "abonnement", "moins cher", "promo", "budget", "debutant", "premiere fois"]
+  Comparison Shopper: [" vs ", "comparatif", "compar", "meilleure salle", "avis", "classement", "ou aller", "difference"]
+  Goal-Driven Improver: ["programme", "prise de masse", "seche", "perte de poids", "progression", "musculation", "objectif", "coach"]
+  Mobile Multi-City Member: ["plusieurs villes", "voyage", "europe", "acces toutes", "multi-club", "demenag", "etranger"]
+  Reassurance Seeker: ["intimid", "peur", "femme", "securite", "propre", "hygiene", "gene", "anxi", "regard des autres", "calme"]
+
+keywords:
+  include: ["salle de sport", "salles de sport", "gym", "musculation", "fitness", "remise en forme", "abonnement fitness",
+            "24h/24", "coach sportif", "cardio", "rowing", "pilates", "basic-fit", "basic fit", "entrainement", "sport en salle"]
+  exclude: ["recrutement", "carriere", "offre d'emploi", "boursorama", "action bourse", "cotation", "cours de bourse",
+            "dividende", "resultats financiers", "chiffre d'affaires semestriel", "football", "ligue 1",
+            "ligue des champions", "mercato", "rooftop", "hammam", "immobilier", "a vendre", "voiture", "automobile"]
+
+sources:
+  google_news:
+    enabled: true
+    queries: ["salle de sport", "basic-fit", "musculation", "abonnement fitness", "fitness park", "salle de sport 24h/24",
+              "salle de sport femme", "coach sportif tendance", "sport rentrée", "pilates tendance"]
+  rss:
+    enabled: true
+    feeds:
+      - https://www.leparisien.fr/sports/rss.xml
+      - https://www.marieclaire.fr/rss/forme.xml
+      - https://www.cosmopolitan.fr/rss/forme.xml
+      - https://www.runners.fr/feed
+      - https://www.doctissimo.fr/rss/forme.xml
+      - https://www.femmeactuelle.fr/sante/rss.xml
+      - https://www.20minutes.fr/feeds/rss-sante.xml
+  reddit:
+    enabled: true
+    subreddits: [musculation, france, paris, lyon, marseillefr, Bordeaux, Fitness_France, nutrition, loseit_fr, femmesenforme]
+    limit_per_sub: 50
+  youtube:
+    enabled: true
+    queries: ["salle de sport", "basic fit", "musculation débutant", "salle de sport pas cher"]
+    channel_handles: ["@TiboInShape", "@AlFitness", "@MajorMouvement", "@DoctorFitness", "@HasanBazin", "@JulieFereez"]
+  tiktok:
+    enabled: true   # needs APIFY_TOKEN
+    hashtags: [salledesport, basicfit, musculationfemme, gymtok, fitnessfrance, gymparis]
+    results_per_hashtag: 30
+  instagram:
+    enabled: true   # needs APIFY_TOKEN
+    hashtags: [salledesport, basicfit, musculationfemme, fitnessfrance, gymparis]
+    results_per_hashtag: 30
+  google_trends:
+    enabled: true
+    seeds: ["salle de sport", "gym pas cher", "musculation", "abonnement fitness", "gym 24/7", "gym femme"]
+  ahrefs:
+    enabled: true   # needs AHREFS_API_KEY
+    backlink_keywords: ["salle de sport", "meilleure salle", "gym", "musculation"]
+  gsc:
+    enabled: false  # pending client access
+    property: "sc-domain:basic-fit.com"
+    rising_threshold_pct: 30
+
+promptwatch:
+  project_id: 5a7e8d16-e318-4f7c-bab1-182ed3a9adb3
+  slug: basic-fit-3
+  seed_file: data/promptwatch_prompts.json
+  low_visibility_threshold: 40.4
+
+seasonality:
+  - {name: rentrée, start: "09-01", end: "09-30", themes: ["rentree", "reprise", "septembre", "bonnes resolutions"]}
+  - {name: new-year, start: "01-01", end: "01-31", themes: ["janvier", "resolution", "nouvelle annee", "detox"]}
+  - {name: summer-body, start: "06-01", end: "06-30", themes: ["ete", "plage", "summer body", "maillot", "vacances"]}
+
+scoring:
+  weights: {audience: 1.0, timeliness: 1.0, gap: 1.0, testability: 1.0}
+  this_week_min: 15
+  this_week_max: 5
+  monitor_min: 10
+
+output:
+  lookback_days: 7
+  weekly_report: true
+  client_panel: true
+  report_language: en
+  narrative_top_n: 12   # opportunities enriched by Claude (only when ANTHROPIC_API_KEY is set)

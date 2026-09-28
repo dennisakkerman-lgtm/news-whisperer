@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ cfg.brand.name }} · News Whisperer</title>
+<style>
+  :root{--bg:#f4f4f2;--card:#fff;--ink:#1d1d1b;--mute:#666;--line:#e3e3df;--accent:#ff7300;--accent-ink:#c45500;--chip:#eee}
+  @media (prefers-color-scheme: dark){:root{--bg:#141413;--card:#1f1f1d;--ink:#eee;--mute:#aaa;--line:#333;--chip:#2c2c2a;--accent-ink:#ff9a40}}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif}
+  header{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--line);background:var(--card)}
+  header h1{font-size:17px;margin:0} header .role{font-size:12px;color:var(--mute)}
+  main{max-width:1200px;margin:0 auto;padding:16px}
+  a{color:var(--accent-ink)}
+  select,button,textarea,input{font:inherit;color:inherit;background:var(--card);border:1px solid var(--line);border-radius:6px;padding:5px 8px}
+  button.primary{background:var(--accent);border-color:var(--accent);color:#fff;cursor:pointer}
+  .filters{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;align-items:center}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:14px;margin-bottom:10px}
+  .card h3{margin:0 0 6px;font-size:15px}
+  .row{display:grid;grid-template-columns:1fr 260px;gap:16px}
+  @media (max-width:760px){.row{grid-template-columns:1fr}}
+  .pills span{display:inline-block;font-size:12px;background:var(--chip);border-radius:10px;padding:1px 8px;margin:0 4px 4px 0}
+  .pills .total{background:var(--accent);color:#fff;font-weight:600}
+  .pills .b-this_week{background:#1d7a3a;color:#fff}.pills .b-monitor{background:#8a6d00;color:#fff}.pills .b-skip{background:#777;color:#fff}
+  .small{font-size:12.5px;color:var(--mute)}
+  .status-actioned{border-left:4px solid #1d7a3a}.status-in_progress{border-left:4px solid #d9a400}.status-skipped{opacity:.6}
+  textarea{width:100%;min-height:60px}
+  .saved{color:#1d7a3a;font-size:12px;margin-left:6px}
+</style>
+</head>
+<body>
+<header>
+  <div><h1>{{ cfg.brand.name }} · News Whisperer</h1>
+  <div class="role">{{ 'Seeders team view' if role == 'team' else 'Client view (read-only)' }}</div></div>
+  {% block actions %}{% endblock %}
+</header>
+<main>{% block body %}{% endblock %}</main>
+</body>
+</html>

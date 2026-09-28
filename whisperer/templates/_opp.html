@@ -1,0 +1,19 @@
+<div class="card">
+  <h3>{{ o.title }}</h3>
+  <div class="pills">
+    <span class="total">{{ o.total }}/20</span>
+    <span class="fmt">{{ o.format }}</span>
+    <span>audience {{ o.audience }}</span><span>timeliness {{ o.timeliness }}</span><span>gap {{ o.gap }}</span><span>testability {{ o.testability }}</span>
+    {% if o.narrative_score is not none %}<span>narrative {{ o.narrative_score }}/10</span>{% endif %}
+    <span>act within {{ o.urgency }}</span>
+    {% if o.city %}<span>{{ o.city }}</span>{% endif %}
+    {% for p in o.personas %}<span>{{ p }}</span>{% endfor %}
+  </div>
+  {% if o.keyword %}<div class="small"><strong>Brief keyword:</strong> {{ o.keyword }}</div>{% endif %}
+  <p style="margin:6px 0">{{ o.rationale }}</p>
+  {% if o.gap_prompt %}<div class="small"><strong>PromptWatch gap:</strong> “{{ o.gap_prompt }}” ({{ '%.0f' % o.gap_visibility }}% visibility)</div>{% endif %}
+  {% if o.skip_reason and o.bucket == 'monitor' %}<div class="small"><em>{{ o.skip_reason }}</em></div>{% endif %}
+  <div class="small"><strong>Evidence:</strong>
+    {% for u in o.evidence %}<a href="{{ u }}">{{ u | host }}</a>{% if not loop.last %} · {% endif %}{% endfor %}
+    · via {{ o.source }}</div>
+</div>

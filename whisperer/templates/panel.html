@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block actions %}
+<div class="filters" style="margin:0">
+  <select onchange="location='/runs/'+this.value">
+    {% for r in runs %}<option value="{{ r.id }}" {{ 'selected' if r.id == run.id }}>Week of {{ r.started_at.strftime('%d %b %Y') }}{{ '' if r.status == 'done' else ' (' ~ r.status ~ ')' }}</option>{% endfor %}
+  </select>
+  <a href="/runs/{{ run.id }}/report" target="_blank">Weekly report</a>
+  {% if role == 'team' %}
+    <form method="post" action="/run" style="margin:0"><button class="primary" {{ 'disabled' if running }}>{{ 'Running…' if running else 'Run now' }}</button></form>
+  {% endif %}
+</div>
+{% endblock %}
+{% block body %}
+<form class="filters" method="get">
+  <select name="bucket"><option value="">This week + Monitor</option>
+    {% for b in ['this_week','monitor','skip'] %}<option {{ 'selected' if f.bucket == b }}>{{ b }}</option>{% endfor %}</select>
+  <select name="fmt"><option value="">All formats</option>
+    {% for k in formats %}<option {{ 'selected' if f.fmt == k }}>{{ k }}</option>{% endfor %}</select>
+  <select name="status"><option value="">All statuses</option>
+    {% for s in statuses %}<option {{ 'selected' if f.status == s }}>{{ s }}</option>{% endfor %}</select>
+  {% if cities %}<select name="city"><option value="">All cities</option>
+    {% for c in cities %}<option {{ 'selected' if f.city == c }}>{{ c }}</option>{% endfor %}</select>{% endif %}
+  <button>Filter</button>
+  <span class="small">{{ opps|length }} rows</span>
+</form>
+
+{% for o in opps %}
+<div class="card status-{{ o.status }}">
+  <div class="row">
+    <div>
+      <h3>{{ o.title }}</h3>
+      <div class="pills">
+        <span class="b-{{ o.bucket }}">{{ o.bucket.replace('_',' ') }}</span>
+        <span class="total">{{ o.total }}/20</span>
+        <span>{{ o.format }}</span>
+        <span>A{{ o.audience }} · T{{ o.timeliness }} · G{{ o.gap }} · Te{{ o.testability }}</span>
+        {% if o.narrative_score is not none %}<span>narrative {{ o.narrative_score }}/10</span>{% endif %}
+        <span>act within {{ o.urgency }}</span>
+        {% if o.city %}<span>{{ o.city }}</span>{% endif %}
+        {% for p in o.personas %}<span>{{ p }}</span>{% endfor %}
+      </div>
+      {% if o.keyword %}<div class="small"><strong>Keyword:</strong> {{ o.keyword }}</div>{% endif %}
+      <p style="margin:6px 0">{{ o.rationale or o.skip_reason }}</p>
+      {% if o.gap_prompt %}<div class="small"><strong>PromptWatch gap:</strong> “{{ o.gap_prompt }}” ({{ '%.0f' % o.gap_visibility }}% visibility)</div>{% endif %}
+      <div class="small"><strong>Evidence:</strong>
+        {% for u in o.evidence %}<a href="{{ u }}" target="_blank" rel="noopener">{{ u | host }}</a>{% if not loop.last %} · {% endif %}{% endfor %} · via {{ o.source }}</div>
+    </div>
+    <div>
+      {% if role == 'team' %}
+      <form class="tag" data-id="{{ o.id }}">
+        <select name="status">{% for s in statuses %}<option {{ 'selected' if o.status == s }}>{{ s }}</option>{% endfor %}</select>
+        <span class="saved" hidden>saved</span>
+        <textarea name="notes" placeholder="Internal notes">{{ o.notes }}</textarea>
+      </form>
+      {% else %}
+      <div class="small">Status: <strong>{{ o.status.replace('_',' ') }}</strong></div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% else %}
+<div class="card">No rows for this filter.</div>
+{% endfor %}
+
+{% if role == 'team' %}
+<script>
+document.querySelectorAll('form.tag').forEach(function (f) {
+  var t;
+  function save() {
+    fetch('/opps/' + f.dataset.id, {method: 'POST', body: new FormData(f)}).then(function (r) {
+      if (!r.ok) return;
+      var s = f.querySelector('.saved'); s.hidden = false; setTimeout(function () { s.hidden = true; }, 1200);
+      f.closest('.card').className = 'card status-' + f.status.value;
+    });
+  }
+  f.status.addEventListener('change', save);
+  f.notes.addEventListener('input', function () { clearTimeout(t); t = setTimeout(save, 700); });
+});
+</script>
+{% endif %}
+{% endblock %}
