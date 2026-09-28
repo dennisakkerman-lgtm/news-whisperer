@@ -72,7 +72,14 @@ sources:
     seeds: ["salle de sport", "gym pas cher", "musculation", "abonnement fitness", "gym 24/7", "gym femme"]
   ahrefs:
     enabled: true   # needs AHREFS_API_KEY
-    backlink_keywords: ["salle de sport", "meilleure salle", "gym", "musculation"]
+    # only editorial pages (listicles, reviews, comparisons) about gyms count as pitch targets
+    backlink_keywords: ["meilleur", "top ", "comparatif", "classement", " avis", "guide", "quelle salle", " vs ", "choisir"]
+    topic_keywords: ["salle de sport", "salles de sport", "gym", "fitness", "musculation"]
+    exclude_domains: [waze.com, google., maps., pagesjaunes.fr, acceslibre, facebook.com, instagram.com, tiktok.com,
+                      youtube.com, tripadvisor, yelp., mappy.com, justacote, horaires., cylex, hoodspot, "118712",
+                      societe.com, pappers.fr, indeed., linkedin.com, gowork., billetweb., yandex., francetravail., pole-emploi., webwiki., groupon., au-magasin., localitybiz., trustima., outiref., hardware.fr, fitnesspark.fr, lorangebleue.fr, keepcool.fr]
+    min_dr: 20
+    link_gap_min_dr: 30       # link gap: French domains (.fr) with DR 30+ only
   gsc:
     enabled: false  # pending client access
     property: "sc-domain:basic-fit.com"
